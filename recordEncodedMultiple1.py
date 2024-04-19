@@ -2,51 +2,46 @@
 
 import depthai as dai
 import contextlib
-import os
-import configparser
-import json
+import keyboard
+import CamSettings
+import ConvertH265
 
 from datetime import datetime
+from Cam_files import Cam_files
+
+cam_files = Cam_files()
 
 print(dai.__version__)  # print depthai version
 
-current_datetime = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
-file_base_name = str(current_datetime)
-file_location = 'G:\My Drive\My Documents\PHDs\Maud'
-file_location = file_location + "\\" + file_base_name
-log_file_name = file_location + "\\" + file_base_name + '_log.txt'
+do_log  = 0
+do_loop = 1
 
-config = configparser.ConfigParser()
-config.read('CamsSetup.ini')
+started = 0
+stopped = 0
 
-cams = json.loads(config.get('cams','idx'))
-aliases = json.loads(config.get('cams','aliases'))
-focusvalues = json.loads(config.get('cams','focusvalues'))
-
-# Check if the directory exists
-if not os.path.exists(file_location):
-    # If not, create the directory
-    os.makedirs(file_location)
-    print(f"Directory '{file_location}' created successfully.")
-else:
-    print(f"Directory '{file_location}' already exists.")
-
-def create_pipeline():
+def create_pipeline(resolution, focus_value):
     # Create pipeline
     pipeline = dai.Pipeline()
 
     # Define sources and outputs
     cam_rgb = pipeline.create(dai.node.ColorCamera)
-    cam_rgb.initialControl.setManualFocus(255)
+    cam_rgb.initialControl.setManualFocus(focus_value)
     video_enc = pipeline.create(dai.node.VideoEncoder)
+    #video_enc.setBitrateKbps(100)
     xout = pipeline.create(dai.node.XLinkOut)
 
     xout.setStreamName('h265')
 
     # Properties
     cam_rgb.setBoardSocket(dai.CameraBoardSocket.CAM_A)
-    cam_rgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
+    if resolution == 1080:
+        cam_rgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
+    else:
+        cam_rgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_720_P)
+
+
     video_enc.setDefaultProfilePreset(60, dai.VideoEncoderProperties.Profile.H265_MAIN)
+    fps = cam_rgb.getFps();
 
     # Linking
     cam_rgb.video.link(video_enc.input)
@@ -78,9 +73,9 @@ def save_stream(queue, file_name, device_count):
 with contextlib.ExitStack() as stack:
     device_infos = dai.Device.getAllAvailableDevices()
 
-    print ("Found camera's:")
+    print ("Found " + str(device_infos.__len__()) + " camera's:")
     for device in device_infos:
-        print (device.mxid)
+        print (device.mxid + " - " + CamSettings.getAlias(device.mxid))
 
     usb_speed = dai.UsbSpeed.SUPER
     openvino_version = dai.OpenVINO.Version.VERSION_2021_4
@@ -90,67 +85,75 @@ with contextlib.ExitStack() as stack:
     device_count = 0
 
     for device_counter, device_info in enumerate(device_infos, start=1):
-
+        mxID = device_info.mxid
+        dev_str = mxID + " - " + CamSettings.getAlias(mxID)
+        print(f"=== Connecting to {dev_str}")
         device = stack.enter_context(dai.Device(openvino_version, device_info, usb_speed))
-        print(f"=== Connected to {device_info.getMxId()}")
+        print(f"===   Connected to {dev_str}")
 
-        calibData = device.readCalibration()
-        intrinsics = calibData.getCameraIntrinsics(dai.CameraBoardSocket.CAM_A)
-        distortionValues = calibData.getDistortionCoefficients(dai.CameraBoardSocket.CAM_A)
-
-        with open("intrinsics.txt","w") as intrinsics_file:
-            intrinsics_file.write(device_info.getMxId() + '\n')
-
-            intrinsics_file.write('  Intrinsics\n')
-
-            for x in range(3):
-                intrinsics_file.write('    '  + str(intrinsics[0][0]) + ' ' + str(intrinsics[0][1]) + ' ' + str(intrinsics[0][2]) + '\n')
-
-            intrinsics_file.write('  Distortion\n')
-            for x in range(14):
-                intrinsics_file.write('    ' + str(distortionValues[x]) + '\n')
-
-
-        pipeline = create_pipeline()
+        pipeline = create_pipeline(CamSettings.getResolution(mxID), CamSettings.getFocusValue(mxID))
         device.startPipeline(pipeline)
 
-        file_name_numbered = f"{file_base_name}_{device_counter}.h265"
-        file_name_numbered = file_location + "\\" + file_name_numbered
+        file_name_numbered = cam_files.run_dir + "\\"  + CamSettings.getAlias(mxID) + ".h265"
+
         q = device.getOutputQueue(name="h265", maxSize=1, blocking=True)
-        queues.append((q, file_name_numbered, device.getMxId()))
+        queues.append((q, device.getMxId()))
+
+
+    print("Ready to record. Click inside the console to set focus. Type R to start recording, T to stop recoring, Y to stop program")
 
     counter = 0
-    while counter <= 100:
+    while do_loop:
 
-        for queuetuple in queues:
-            queue = queuetuple[0]
-            fname = queuetuple[1]
-            cam_name = queuetuple[2]
+        if keyboard.is_pressed("r") and not started:
+            do_log = 1
+            started = 1
+            stopped = 0
+            cam_files.re_init_folders()
+            print("Start logging")
 
-            with open(fname, 'a') as video_file:
+        if keyboard.is_pressed("t") and not stopped:
+            do_log = 0
+            started = 0
+            stopped = 1
+            print("Stop logging")
+            ConvertH265.convertH265Dir(cam_files.get_run_dir())
 
-                try:
-                        h265_packet = queue.get()  # Blocking call, will wait until a new data has arrived
-                        if h265_packet is not None:
+        if keyboard.is_pressed("y"):
+            do_loop = 0
+            print("Stopping program - Please wait a few seconds..")
 
-                            ts = h265_packet.getTimestamp()
+        if do_log:
 
-                            h265_packet.getData().tofile(video_file)  # Appends the packet data to the opened file
+            for queuetuple in queues:
+                queue = queuetuple[0]
+                cam_idx = queuetuple[1]
+                fname = cam_files.get_stream_fname(cam_idx)
 
-                            with open(log_file_name, 'a') as log_file:
-                                log_file.write(str(counter) + " " + cam_name + " " + str(ts) + "\n")
+                with open(fname, 'a') as video_file:
 
-                            if device_count == 0:
-                                print(str(counter))
-                            else:
-                                print('    ' + str(counter))
+                    try:
+                            h265_packet = queue.get()  # Blocking call, will wait until a new data has arrived
+                            if h265_packet is not None:
 
-                except KeyboardInterrupt:
-                    print('Hello user, you have pressed ctrl-c button.')
-                except Exception as e:
-                    print(f"Error while saving stream: {e}")
+                                ts = h265_packet.getTimestamp()
 
-        counter = counter + 1
+                                h265_packet.getData().tofile(video_file)  # Appends the packet data to the opened file
+
+                                with open(cam_files.log_file_name, 'a') as log_file:
+                                    log_file.write(str(counter) + " " + CamSettings.getAlias(cam_idx) + " " + str(ts) + "\n")
+
+                    except KeyboardInterrupt:
+                        print('Hello user, you have pressed ctrl-c button.')
+                    except Exception as e:
+                        print(f"Error while saving stream: {e}")
+            if counter % 60 == 0:
+                if device_count == 0:
+                    print(str(counter))
+                else:
+                    print('    ' + str(counter))
+
+            counter = counter + 1
 
 print('Done.')
 

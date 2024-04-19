@@ -4,10 +4,7 @@ https://trac.ffmpeg.org/wiki/Encode/H.265
 '''
 
 import os
-import sys
-import json
 from subprocess import call, check_output
-
 
 def list_files_with_extension(directory, extension):
     files_with_extension = []
@@ -15,8 +12,6 @@ def list_files_with_extension(directory, extension):
         if filename.endswith(extension):
             files_with_extension.append(filename)
     return files_with_extension
-
-
 
 def get_codec(filepath, channel='v:0'):
     ''' Return the codec and codec-tag for a given channel '''
@@ -26,9 +21,6 @@ def get_codec(filepath, channel='v:0'):
                            'default=nokey=1:noprint_wrappers=1', filepath])
 
     return output.decode('utf-8').split()
-
-fileDir = "G:/My Drive/My Documents/PHDs/Maud/2024-03-27 10-15-44"
-
 
 
 def convertH265File(filepath):
@@ -76,10 +68,10 @@ def convertH265File(filepath):
 
     call(['ffmpeg', '-i', filepath] + video_opts.split() + audio_opts.split() + [output_filepath])
 
-# Example usage:
-directory_path = "G:/My Drive/My Documents/PHDs/Maud/2024-03-27 10-15-44"
-h265_files = list_files_with_extension(directory_path, '.h265')
+def convertH265Dir(directory_path):
 
-for fname in h265_files:
-    fname = os.path.join(directory_path,fname)
-    convertH265File(fname)
+    h265_files = list_files_with_extension(directory_path, '.h265')
+
+    for fname in h265_files:
+        fname = os.path.join(directory_path,fname)
+        convertH265File(fname)
