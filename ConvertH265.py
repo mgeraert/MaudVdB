@@ -5,6 +5,7 @@ https://trac.ffmpeg.org/wiki/Encode/H.265
 
 import os
 from subprocess import call, check_output
+import subprocess
 
 def list_files_with_extension(directory, extension):
     files_with_extension = []
@@ -67,6 +68,22 @@ def convertH265File(filepath):
         audio_opts = '-c:a aac -b:a 128k'
 
     call(['ffmpeg', '-i', filepath] + video_opts.split() + audio_opts.split() + [output_filepath])
+    return output_filepath
+
+
+def ConvertFirstFrameToImage(filepath):
+    basefilepath, extension = os.path.splitext(filepath)
+
+    filepath = filepath.replace(os.sep, '/')
+    output_filepath = basefilepath  + '.jpg'
+    output_filepath = output_filepath.replace(os.sep, '/')
+
+    video_opts = r' -vf "select=eq(n\,60)" -q:v 3 '
+
+    command = 'ffmpeg -i ' + filepath + video_opts + output_filepath
+    subprocess.call(command, shell=True)
+    #call(['ffmpeg', '-i', filepath] + video_opts.split()  + [output_filepath])
+
 
 def convertH265Dir(directory_path):
 
@@ -74,4 +91,5 @@ def convertH265Dir(directory_path):
 
     for fname in h265_files:
         fname = os.path.join(directory_path,fname)
-        convertH265File(fname)
+        output_filepath = convertH265File(fname)
+        ConvertFirstFrameToImage(output_filepath)

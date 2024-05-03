@@ -5,6 +5,9 @@ import contextlib
 import keyboard
 import CamSettings
 import ConvertH265
+import PySimpleGUI as sg
+import subprocess
+import os
 
 from datetime import datetime
 from Cam_files import Cam_files
@@ -25,9 +28,9 @@ def create_pipeline(resolution, focus_value):
 
     # Define sources and outputs
     cam_rgb = pipeline.create(dai.node.ColorCamera)
+    cam_rgb.setFps(60)
     cam_rgb.initialControl.setManualFocus(focus_value)
     video_enc = pipeline.create(dai.node.VideoEncoder)
-    #video_enc.setBitrateKbps(100)
     xout = pipeline.create(dai.node.XLinkOut)
 
     xout.setStreamName('h265')
@@ -38,8 +41,6 @@ def create_pipeline(resolution, focus_value):
         cam_rgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
     else:
         cam_rgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_720_P)
-
-
     video_enc.setDefaultProfilePreset(60, dai.VideoEncoderProperties.Profile.H265_MAIN)
     fps = cam_rgb.getFps();
 
@@ -66,6 +67,26 @@ def save_stream(queue, file_name, device_count):
             print('Hello user, you have pressed ctrl-c button.')
         except Exception as e:
             print(f"Error while saving stream: {e}")
+
+
+
+
+layout = [
+    [sg.Button('Start', key='-START-'), sg.Button('Stop', key='-STOP-'), sg.Button('Exit', key='-EXIT-')],
+    [sg.Text('Cams found: ', size=(10,1)), sg.Text('', size=(10,1), key='-CAMS-')],
+    [sg.Text('File loc:', size=(10,1)), sg.Button('Open', key='-OPEN-'), sg.Text('', size=(50,1), key='-FILELOC-')],
+    [sg.Text('Frames:', size=(10,1)), sg.Text('', size=(10,1), key='-FRAMES-')]
+]
+
+window = sg.Window('Video control', layout, size=(500, 200), finalize=True)
+
+def disableButtons(state):
+    window["-START-"].update(disabled=state)
+    window["-STOP-"].update(disabled=state)
+    window["-EXIT-"].update(disabled=state)
+
+disableButtons(True)
+
 
 # Get current date and time
 
@@ -99,11 +120,42 @@ with contextlib.ExitStack() as stack:
         q = device.getOutputQueue(name="h265", maxSize=1, blocking=True)
         queues.append((q, device.getMxId()))
 
+    device_count = queues.__len__()
 
     print("Ready to record. Click inside the console to set focus. Type R to start recording, T to stop recoring, Y to stop program")
 
+    window['-CAMS-'].update(str(device_count))
+    window['-FILELOC-'].update(cam_files.get_log_folder())
+
     counter = 0
+    disableButtons(False)
+
     while do_loop:
+
+        event, values = window.read(timeout=10)
+
+        if event == sg.WINDOW_CLOSED:
+            do_loop = 0
+            break
+        elif event == '-START-':
+            do_log = 1
+            started = 1
+            stopped = 0
+            cam_files.re_init_folders()
+            window['-FILELOC-'].update(cam_files.get_run_dir())
+            print("Start logging")
+        elif event == '-STOP-':
+            do_log = 0
+            started = 0
+            stopped = 1
+            print("Stop logging")
+            ConvertH265.convertH265Dir(cam_files.get_run_dir())
+        elif event == '-OPEN-':
+            os.startfile(cam_files.get_run_dir())
+        elif event == '-EXIT-':
+            do_loop = 0
+            print("Stopping program - Please wait a few seconds..")
+            window.close()
 
         if keyboard.is_pressed("r") and not started:
             do_log = 1
@@ -122,6 +174,7 @@ with contextlib.ExitStack() as stack:
         if keyboard.is_pressed("y"):
             do_loop = 0
             print("Stopping program - Please wait a few seconds..")
+            window.close()
 
         if do_log:
 
@@ -147,6 +200,9 @@ with contextlib.ExitStack() as stack:
                         print('Hello user, you have pressed ctrl-c button.')
                     except Exception as e:
                         print(f"Error while saving stream: {e}")
+
+            window['-FRAMES-'].update(str(counter))
+
             if counter % 60 == 0:
                 if device_count == 0:
                     print(str(counter))
