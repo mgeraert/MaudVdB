@@ -73,6 +73,7 @@ def save_stream(queue, file_name, device_count):
 
 layout = [
     [sg.Button('Start', key='-START-'), sg.Button('Stop', key='-STOP-'), sg.Button('Exit', key='-EXIT-')],
+    [sg.Text('Status: ', size=(10,1)), sg.Text('', size=(50,1), key='-STATUS-')],
     [sg.Text('Cams found: ', size=(10,1)), sg.Text('', size=(10,1), key='-CAMS-')],
     [sg.Text('File loc:', size=(10,1)), sg.Button('Open', key='-OPEN-'), sg.Text('', size=(50,1), key='-FILELOC-')],
     [sg.Text('Frames:', size=(10,1)), sg.Text('', size=(10,1), key='-FRAMES-')]
@@ -109,8 +110,12 @@ with contextlib.ExitStack() as stack:
         mxID = device_info.mxid
         dev_str = mxID + " - " + CamSettings.getAlias(mxID)
         print(f"=== Connecting to {dev_str}")
+        window['-STATUS-'].update(f"=== Connecting to {dev_str}")
+        window.refresh()
         device = stack.enter_context(dai.Device(openvino_version, device_info, usb_speed))
         print(f"===   Connected to {dev_str}")
+        window['-STATUS-'].update(f"===   Connected to {dev_str}")
+        window.refresh()
 
         pipeline = create_pipeline(CamSettings.getResolution(mxID), CamSettings.getFocusValue(mxID))
         device.startPipeline(pipeline)
@@ -121,6 +126,9 @@ with contextlib.ExitStack() as stack:
         queues.append((q, device.getMxId()))
 
     device_count = queues.__len__()
+
+    window['-STATUS-'].update("Ready to record")
+    window.refresh()
 
     print("Ready to record. Click inside the console to set focus. Type R to start recording, T to stop recoring, Y to stop program")
 
