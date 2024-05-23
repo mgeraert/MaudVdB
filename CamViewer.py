@@ -33,12 +33,11 @@ def getDeviceInfo(device_infos, mxid):
 cam_list = []
 label_list_header = sg.Text("Camera list", font=("Helvetica", 12, "bold"))
 camera_list = sg.Listbox(cam_list, size=(40, 14), key='-CAM_LIST-', enable_events=True)
-slider = sg.Slider((0, 255), orientation='horizontal', key='-SLIDER-')
+slider = sg.Slider((0, 255), size=(40, 16), orientation='horizontal', key='-SLIDER-')
 
 layout = [
     [label_list_header],
     [camera_list],
-    [sg.Button('Start', key='-START-'), sg.Button('Stop', key='-STOP-'), sg.Button('Exit', key='-EXIT-')],
     [sg.Text('Status: ', size=(10,1)), sg.Text('', size=(50,1), key='-STATUS-')],
     [sg.Text('Cam selected: ', size=(14,1)), sg.Text('', size=(50,1), key='-CAMSELECTED-')],
     [slider],
@@ -72,12 +71,16 @@ camSelected = device_infos[0]
 previous_selection = ''
 window_closed = False
 
+window['-CAMSELECTED-'].update(cam_list[0])
+
+
 while True:
         device = dai.Device(openvino_version,camSelected,usb_speed)
         pipeline = CreatePipeLine(0)
         device.startPipeline(pipeline)
         qRgb = device.getOutputQueue(name="rgb", maxSize=4, blocking=False)
         controlQueue = device.getInputQueue('cam_control')
+
 
         previous_focus_value = focus_value
 
@@ -106,8 +109,6 @@ while True:
                 ctrl = dai.CameraControl()
                 ctrl.setManualFocus(focus_value)
                 controlQueue.send(ctrl)
-
-
 
             selected_item = values['-CAM_LIST-']
             if selected_item != []:
