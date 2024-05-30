@@ -10,6 +10,7 @@ class Cam_files:
         self.run_dir = ""
         self.log_file_name = ""
         self.log_folder = ""
+        self.re_init_folders()
 
     def re_init_folders(self):
         current_date = datetime.now().strftime("%Y-%m-%d")

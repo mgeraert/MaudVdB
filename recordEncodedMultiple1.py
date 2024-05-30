@@ -96,6 +96,9 @@ with contextlib.ExitStack() as stack:
     device_infos = dai.Device.getAllAvailableDevices()
 
     print ("Found " + str(device_infos.__len__()) + " camera's:")
+
+    window['-CAMS-'].update(str(device_infos.__len__()))
+
     for device in device_infos:
         print (device.mxid + " - " + CamSettings.getAlias(device.mxid))
 
@@ -132,7 +135,6 @@ with contextlib.ExitStack() as stack:
 
     print("Ready to record. Click inside the console to set focus. Type R to start recording, T to stop recoring, Y to stop program")
 
-    window['-CAMS-'].update(str(device_count))
     window['-FILELOC-'].update(cam_files.get_log_folder())
 
     counter = 0
@@ -140,7 +142,7 @@ with contextlib.ExitStack() as stack:
 
     while do_loop:
 
-        event, values = window.read(timeout=10)
+        event, values = window.read(timeout=1)
 
         if event == sg.WINDOW_CLOSED:
             do_loop = 0
