@@ -50,7 +50,7 @@ with contextlib.ExitStack() as stack:
         device = stack.enter_context(dai.Device(openvino_version, device_info, usb_speed))
 
         calibData = device.readCalibration()
-        intrinsics = calibData.getCameraIntrinsics(dai.CameraBoardSocket.CAM_A)
+        intrinsics = calibData.getCameraIntrinsics(dai.CameraBoardSocket.CAM_A, 1920, 1080)
         distortionValues = calibData.getDistortionCoefficients(dai.CameraBoardSocket.CAM_A)
 
 
