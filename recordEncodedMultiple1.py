@@ -22,7 +22,7 @@ do_loop = 1
 started = 0
 stopped = 0
 
-def create_pipeline(resolution, focus_value):
+def create_pipeline(resolution, focus_value, wb_value):
     # Create pipeline
     pipeline = dai.Pipeline()
 
@@ -30,7 +30,12 @@ def create_pipeline(resolution, focus_value):
     cam_rgb = pipeline.create(dai.node.ColorCamera)
     cam_rgb.setFps(60)
     cam_rgb.initialControl.setManualFocus(focus_value)
+
+    if not type(wb_value) == str:
+        cam_rgb.initialControl.setManualWhiteBalance(wb_value)
+
     video_enc = pipeline.create(dai.node.VideoEncoder)
+    video_enc.setQuality(100)
     xout = pipeline.create(dai.node.XLinkOut)
 
     xout.setStreamName('h265')
@@ -39,10 +44,14 @@ def create_pipeline(resolution, focus_value):
     cam_rgb.setBoardSocket(dai.CameraBoardSocket.CAM_A)
     if resolution == 1080:
         cam_rgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
+        video_enc.setBitrateKbps(500)
     else:
         cam_rgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_720_P)
+        video_enc.setBitrateKbps(500)
     video_enc.setDefaultProfilePreset(60, dai.VideoEncoderProperties.Profile.H265_MAIN)
     fps = cam_rgb.getFps();
+
+    print()
 
     # Linking
     cam_rgb.video.link(video_enc.input)
@@ -120,7 +129,7 @@ with contextlib.ExitStack() as stack:
         window['-STATUS-'].update(f"===   Connected to {dev_str}")
         window.refresh()
 
-        pipeline = create_pipeline(CamSettings.getResolution(mxID), CamSettings.getFocusValue(mxID))
+        pipeline = create_pipeline(CamSettings.getResolution(mxID), CamSettings.getFocusValue(mxID), CamSettings.getWBValue(mxID))
         device.startPipeline(pipeline)
 
         file_name_numbered = cam_files.run_dir + "\\"  + CamSettings.getAlias(mxID) + ".h265"
@@ -132,8 +141,6 @@ with contextlib.ExitStack() as stack:
 
     window['-STATUS-'].update("Ready to record")
     window.refresh()
-
-    print("Ready to record. Click inside the console to set focus. Type R to start recording, T to stop recoring, Y to stop program")
 
     window['-FILELOC-'].update(cam_files.get_log_folder())
 
@@ -160,6 +167,7 @@ with contextlib.ExitStack() as stack:
             stopped = 1
             print("Stop logging")
             ConvertH265.convertH265Dir(cam_files.get_run_dir())
+            cam_files.copy_files()
         elif event == '-OPEN-':
             os.startfile(cam_files.get_run_dir())
         elif event == '-EXIT-':
@@ -167,24 +175,6 @@ with contextlib.ExitStack() as stack:
             print("Stopping program - Please wait a few seconds..")
             window.close()
 
-        if keyboard.is_pressed("r") and not started:
-            do_log = 1
-            started = 1
-            stopped = 0
-            cam_files.re_init_folders()
-            print("Start logging")
-
-        if keyboard.is_pressed("t") and not stopped:
-            do_log = 0
-            started = 0
-            stopped = 1
-            print("Stop logging")
-            ConvertH265.convertH265Dir(cam_files.get_run_dir())
-
-        if keyboard.is_pressed("y"):
-            do_loop = 0
-            print("Stopping program - Please wait a few seconds..")
-            window.close()
 
         if do_log:
 

@@ -33,19 +33,25 @@ def getDeviceInfo(device_infos, mxid):
 cam_list = []
 label_list_header = sg.Text("Camera list", font=("Helvetica", 12, "bold"))
 camera_list = sg.Listbox(cam_list, size=(40, 14), key='-CAM_LIST-', enable_events=True)
-slider = sg.Slider((0, 255), size=(40, 16), orientation='horizontal', key='-SLIDER-')
+lblF = [sg.Text('Focus ', size=(14,1)), sg.Text('', size=(50,1), key='-LBLFOCUS-')],
+sliderF = sg.Slider((0, 255), size=(40, 16), orientation='horizontal', key='-SLIDERF-')
+lblW = [sg.Text('WhiteBalance ', size=(14,1)), sg.Text('', size=(50,1), key='-LBLWB-')],
+sliderW = sg.Slider((1000, 12000), size=(40, 16), orientation='horizontal', key='-SLIDERW-')
 
 layout = [
     [label_list_header],
     [camera_list],
     [sg.Text('Status: ', size=(10,1)), sg.Text('', size=(50,1), key='-STATUS-')],
     [sg.Text('Cam selected: ', size=(14,1)), sg.Text('', size=(50,1), key='-CAMSELECTED-')],
-    [slider],
+    [sliderF],
+    [lblF],
+    [sliderW],
+    [lblW],
     [sg.Text('File loc:', size=(10,1)), sg.Button('Open', key='-OPEN-'), sg.Text('', size=(50,1), key='-FILELOC-')],
     [sg.Text('Frames:', size=(10,1)), sg.Text('', size=(10,1), key='-FRAMES-')]
 ]
 
-window = sg.Window('Video control', layout, size=(500, 450), finalize=True)
+window = sg.Window('Video control', layout, size=(500, 550), finalize=True)
 
 device_infos = dai.Device.getAllAvailableDevices()
 
@@ -81,8 +87,8 @@ while True:
         qRgb = device.getOutputQueue(name="rgb", maxSize=4, blocking=False)
         controlQueue = device.getInputQueue('cam_control')
 
-
         previous_focus_value = focus_value
+        previous_wb_value = 2700
 
         while True:
 
@@ -103,11 +109,17 @@ while True:
                 focus = 127
             elif event == '-CAM_LIST-':
                 focus = 127
-            elif previous_focus_value != values['-SLIDER-']:
-                focus_value = int(values['-SLIDER-'])
+            elif previous_focus_value != values['-SLIDERF-']:
+                focus_value = int(values['-SLIDERF-'])
                 previous_focus_value = focus_value
                 ctrl = dai.CameraControl()
                 ctrl.setManualFocus(focus_value)
+                controlQueue.send(ctrl)
+            elif previous_wb_value != values['-SLIDERW-']:
+                wb_value = int(values['-SLIDERW-'])
+                previous_wb_value = wb_value
+                ctrl = dai.CameraControl()
+                ctrl.setManualWhiteBalance(wb_value)
                 controlQueue.send(ctrl)
 
             selected_item = values['-CAM_LIST-']
