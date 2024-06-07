@@ -97,7 +97,6 @@ def disableButtons(state):
 
 disableButtons(True)
 
-
 # Get current date and time
 
 # Use ExitStack to manage devices context
@@ -135,6 +134,7 @@ with contextlib.ExitStack() as stack:
         file_name_numbered = cam_files.run_dir + "\\"  + CamSettings.getAlias(mxID) + ".h265"
 
         q = device.getOutputQueue(name="h265", maxSize=1, blocking=True)
+
         queues.append((q, device.getMxId()))
 
     device_count = queues.__len__()
@@ -168,6 +168,10 @@ with contextlib.ExitStack() as stack:
             print("Stop logging")
             ConvertH265.convertH265Dir(cam_files.get_run_dir())
             cam_files.copy_files()
+            for queuetuple in queues:
+                queue = queuetuple[0]
+                queue.tryGetAll()
+
         elif event == '-OPEN-':
             os.startfile(cam_files.get_run_dir())
         elif event == '-EXIT-':
