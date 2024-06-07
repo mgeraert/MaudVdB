@@ -1,0 +1,8 @@
+depthai==2.25.0.0
+keyboard==0.13.5
+numpy==1.26.4
+opencv-python==4.9.0.80
+playsound==1.2.2
+pyasn1==0.6.0
+PySimpleGUI==5.0.4
+rsa==4.9
