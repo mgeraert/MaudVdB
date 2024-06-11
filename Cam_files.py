@@ -40,13 +40,16 @@ class Cam_files:
 
 
     def get_run_dir(self):
-        return self.run_dir
+            return self.run_dir
 
     def get_log_file_name(self):
         return self.log_file_name
 
     def get_log_folder(self):
-        return self.log_folder
+        if not CamSettings.FilesNeed2BeCopied():
+            return self.log_folder
+        else:
+            return self.copy_2_dir
 
     def get_stream_fname(self, cam_idx):
         cam_alias = CamSettings.getAlias(cam_idx)

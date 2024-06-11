@@ -84,11 +84,11 @@ layout = [
     [sg.Button('Start', key='-START-'), sg.Button('Stop', key='-STOP-'), sg.Button('Exit', key='-EXIT-')],
     [sg.Text('Status: ', size=(10,1)), sg.Text('', size=(50,1), key='-STATUS-')],
     [sg.Text('Cams found: ', size=(10,1)), sg.Text('', size=(10,1), key='-CAMS-')],
-    [sg.Text('File loc:', size=(10,1)), sg.Button('Open', key='-OPEN-'), sg.Text('', size=(50,1), key='-FILELOC-')],
+    [sg.Text('File loc:', size=(10,1)), sg.Button('Open', key='-OPEN-'), sg.Text('', size=(60,1), key='-FILELOC-')],
     [sg.Text('Frames:', size=(10,1)), sg.Text('', size=(10,1), key='-FRAMES-')]
 ]
 
-window = sg.Window('Video control', layout, size=(500, 200), finalize=True)
+window = sg.Window('Video control', layout, size=(620, 200), finalize=True)
 
 def disableButtons(state):
     window["-START-"].update(disabled=state)
@@ -173,7 +173,10 @@ with contextlib.ExitStack() as stack:
                 queue.tryGetAll()
 
         elif event == '-OPEN-':
-            os.startfile(cam_files.get_run_dir())
+            if not cam_files.copy_2_dir:
+                os.startfile(cam_files.get_run_dir())
+            else:
+                os.startfile(cam_files.copy_2_dir)
         elif event == '-EXIT-':
             do_loop = 0
             print("Stopping program - Please wait a few seconds..")
@@ -214,6 +217,12 @@ with contextlib.ExitStack() as stack:
                     print('    ' + str(counter))
 
             counter = counter + 1
+        else:
+            for queuetuple in queues:
+                queue = queuetuple[0]
+                queue.get()
+
+
 
 print('Done.')
 
